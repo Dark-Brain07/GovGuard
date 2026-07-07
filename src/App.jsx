@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { 
   ShieldCheck, 
   Wallet, 
@@ -16,6 +16,7 @@ import './index.css';
 import { createClient, createAccount } from 'genlayer-js';
 import { studionet } from 'genlayer-js/chains';
 import { TransactionStatus } from 'genlayer-js/types';
+import { usePrivy, useWallets } from '@privy-io/react-auth';
 
 const CONTRACT_ADDRESS = "0x2E0a398F11D35d3DB95f1A41799AdF4DFdDA53B7";
 
@@ -24,28 +25,15 @@ const glAccount = createAccount();
 const glClient = createClient({ chain: studionet, account: glAccount });
 
 function App() {
+  const { login, logout, ready, authenticated, user } = usePrivy();
+  const { wallets } = useWallets();
+  const activeWallet = wallets[0];
+  const walletAddress = user?.wallet?.address || activeWallet?.address || null;
+
   const [url, setUrl] = useState('');
   const [status, setStatus] = useState('idle');
   const [verdict, setVerdict] = useState(null);
   const [loadingText, setLoadingText] = useState('');
-  const [walletAddress, setWalletAddress] = useState(null);
-  const [isConnecting, setIsConnecting] = useState(false);
-  const [showWalletModal, setShowWalletModal] = useState(false);
-
-  // Listen for account changes from the wallet extension
-  useEffect(() => {
-    if (window.ethereum) {
-      const handleAccountsChanged = (accounts) => {
-        if (accounts.length === 0) {
-          setWalletAddress(null);
-        } else {
-          setWalletAddress(accounts[0]);
-        }
-      };
-      window.ethereum.on('accountsChanged', handleAccountsChanged);
-      return () => window.ethereum.removeListener('accountsChanged', handleAccountsChanged);
-    }
-  }, []);
 
   const truncateAddress = (addr) => {
     if (!addr) return '';
@@ -60,82 +48,12 @@ function App() {
     blockExplorerUrls: ['https://explorer-studio.genlayer.com'],
   };
 
-  const switchToGenLayer = async () => {
-    try {
-      await window.ethereum.request({
-        method: 'wallet_switchEthereumChain',
-        params: [{ chainId: GENLAYER_CHAIN.chainId }],
-      });
-    } catch (switchError) {
-      // Chain not added yet — add it
-      if (switchError.code === 4902) {
-        await window.ethereum.request({
-          method: 'wallet_addEthereumChain',
-          params: [GENLAYER_CHAIN],
-        });
-      }
-    }
-  };
-
-  const connectWallet = async () => {
-    if (!window.ethereum) {
-      alert("No Web3 wallet detected! Please install MetaMask or Rabby to continue.");
-      return;
-    }
-
-    setShowWalletModal(false);
-    setIsConnecting(true);
-
-    try {
-      // Try to switch to GenLayer network (graceful - don't block if it fails)
-      try { await switchToGenLayer(); } catch (e) { console.warn("Network switch skipped:", e); }
-
-      // Force the wallet extension popup to appear for account selection
-      await window.ethereum.request({
-        method: 'wallet_requestPermissions',
-        params: [{ eth_accounts: {} }]
-      });
-
-      const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-      if (accounts.length > 0) {
-        setWalletAddress(accounts[0]);
-      }
-    } catch (err) {
-      console.warn("Wallet connection rejected:", err);
-    }
-
-    setIsConnecting(false);
-  };
-
-  const disconnectWallet = () => {
-    setWalletAddress(null);
-    setShowWalletModal(false);
-  };
-
-  const switchAccount = async () => {
-    setIsConnecting(true);
-    try {
-      await window.ethereum.request({
-        method: 'wallet_requestPermissions',
-        params: [{ eth_accounts: {} }]
-      });
-      const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-      if (accounts.length > 0) {
-        setWalletAddress(accounts[0]);
-      }
-    } catch (err) {
-      console.warn("Switch rejected:", err);
-    }
-    setIsConnecting(false);
-    setShowWalletModal(false);
-  };
-
   const handleEvaluate = async (e) => {
     e.preventDefault();
     if (!url) return;
 
-    if (!walletAddress) {
-      setShowWalletModal(true);
+    if (!walletAddress || !activeWallet) {
+      login();
       return;
     }
 
@@ -145,19 +63,33 @@ function App() {
 
     // Request a real signature from the connected wallet
     try {
-      try { await switchToGenLayer(); } catch (e) { }
+      const provider = await activeWallet.getEthereumProvider();
+      
+      try {
+        await provider.request({
+          method: 'wallet_switchEthereumChain',
+          params: [{ chainId: GENLAYER_CHAIN.chainId }],
+        });
+      } catch (switchError) {
+        if (switchError.code === 4902) {
+          await provider.request({
+            method: 'wallet_addEthereumChain',
+            params: [GENLAYER_CHAIN],
+          });
+        }
+      }
 
       const message = `GovGuard Proposal Evaluation\n\nAction: Evaluate Proposal\nURL: ${url}\nContract: ${CONTRACT_ADDRESS}\nTimestamp: ${new Date().toISOString()}`;
       const hexMessage = '0x' + Array.from(new TextEncoder().encode(message))
         .map(b => b.toString(16).padStart(2, '0'))
         .join('');
 
-      await window.ethereum.request({
+      await provider.request({
         method: 'personal_sign',
         params: [hexMessage, walletAddress]
       });
     } catch (err) {
-      console.warn("Signature rejected by user");
+      console.warn("Signature rejected by user", err);
       setStatus('idle');
       return;
     }
@@ -231,16 +163,18 @@ function App() {
         </div>
         <button 
           className={`wallet-btn ${walletAddress ? 'connected' : ''}`} 
-          onClick={() => walletAddress ? setShowWalletModal(true) : connectWallet()}
-          disabled={isConnecting}
+          onClick={() => walletAddress ? logout() : login()}
+          disabled={!ready}
           style={walletAddress ? { borderColor: 'var(--success)', color: 'var(--success)', background: 'rgba(16, 185, 129, 0.1)' } : {}}
         >
-          {isConnecting ? (
+          {!ready ? (
             <Loader2 className="spinner" size={18} />
+          ) : walletAddress ? (
+            <LogOut size={18} />
           ) : (
             <Wallet size={18} />
           )}
-          {isConnecting ? 'Connecting...' : walletAddress ? truncateAddress(walletAddress) : 'Connect Wallet'}
+          {!ready ? 'Loading...' : walletAddress ? truncateAddress(walletAddress) : 'Connect Wallet'}
         </button>
       </header>
 
@@ -323,65 +257,6 @@ function App() {
       <footer>
         Powered by GenLayer Intelligent Contracts <ShieldCheck size={14} /> Built for the GoodBuilders Program
       </footer>
-
-      {/* Wallet Modal */}
-      {showWalletModal && (
-        <div className="modal-overlay" onClick={() => setShowWalletModal(false)}>
-          <div className="modal-content glass-panel" onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3>{walletAddress ? 'Wallet Connected' : 'Connect a Wallet'}</h3>
-              <button className="close-btn" onClick={() => setShowWalletModal(false)}><XCircle size={22} /></button>
-            </div>
-            
-            {walletAddress ? (
-              <div className="wallet-connected-view">
-                <div className="connected-address-box">
-                  <div className="address-avatar">{walletAddress.substring(2, 4).toUpperCase()}</div>
-                  <div className="address-details">
-                    <span className="address-label">Connected</span>
-                    <span className="address-full">{truncateAddress(walletAddress)}</span>
-                  </div>
-                  <CheckCircle2 size={20} style={{ color: 'var(--success)' }} />
-                </div>
-                <div className="wallet-actions">
-                  <button className="wallet-action-btn" onClick={switchAccount}>
-                    <RefreshCw size={16} />
-                    Switch Account
-                  </button>
-                  <button className="wallet-action-btn disconnect" onClick={disconnectWallet}>
-                    <LogOut size={16} />
-                    Disconnect
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="wallet-options">
-                <button className="wallet-option" onClick={connectWallet}>
-                  <img src="https://upload.wikimedia.org/wikipedia/commons/3/36/MetaMask_Fox.svg" alt="MetaMask" width="32" height="32" />
-                  <div className="wallet-option-info">
-                    <span className="wallet-option-name">MetaMask</span>
-                    <span className="wallet-option-desc">Connect using browser extension</span>
-                  </div>
-                </button>
-                <button className="wallet-option" onClick={connectWallet}>
-                  <div className="wallet-icon-circle" style={{background: 'linear-gradient(135deg, #7a81ff, #6366f1)'}}>R</div>
-                  <div className="wallet-option-info">
-                    <span className="wallet-option-name">Rabby Wallet</span>
-                    <span className="wallet-option-desc">Connect using browser extension</span>
-                  </div>
-                </button>
-                <button className="wallet-option" onClick={connectWallet}>
-                  <div className="wallet-icon-circle" style={{background: 'linear-gradient(135deg, #3b99fc, #2563eb)'}}>W</div>
-                  <div className="wallet-option-info">
-                    <span className="wallet-option-name">WalletConnect</span>
-                    <span className="wallet-option-desc">Scan QR with mobile wallet</span>
-                  </div>
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
