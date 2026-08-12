@@ -12,10 +12,11 @@ Instead of human moderators reading every forum post, GovGuard uses GenLayer's A
 ## Architecture & GenLayer Integration (The Apolo Pattern)
 This project was specifically designed to mirror the complex integration pattern of high-scoring GenLayer MVPs:
 
-1. **Deterministic Web Fetching:** Uses `gl.nondet.web.get` to fetch raw proposal evidence from IPFS or web forums.
-2. **AI Validator Adjudication:** Uses `gl.eq_principle.prompt_non_comparative` for independent AI validator adjudication against the DAO Constitution.
+1. **Deterministic Web Fetching:** Uses `gl.get_webpage` wrapped in a stable comparative block to fetch raw proposal evidence from IPFS or web forums.
+2. **AI Validator Adjudication:** Uses `gl.eq_principle.prompt_comparative` for intelligent AI validator adjudication against the DAO Constitution, ensuring all nodes reach substantive agreement on the decision.
 3. **Fail-Safe Normalization:** Output normalization forces a strict `APPROVED` or `REJECTED` state before consensus is finalized. Ambiguity or AI drift defaults to Reject.
-4. **Full-Stack Implementation:** Contains both the Intelligent Contract backend and a live DApp frontend for users to submit and track evaluations.
+4. **DAO Enforcement Layer (EVM):** Integrates via `@gl.evm.contract_interface` to physically emit a cross-chain `forward_proposal` transaction to an external Governor/Safe contract once a proposal is APPROVED.
+5. **Full-Stack Implementation:** Contains both the Intelligent Contract backend and a live DApp frontend for users to submit and track evaluations.
 
 ## How to Run Locally
 1. Clone this repository.
