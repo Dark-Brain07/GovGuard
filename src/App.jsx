@@ -59,40 +59,10 @@ function App() {
 
     setStatus('loading');
     setVerdict(null);
-    setLoadingText('Please sign the transaction in your wallet...');
+    setLoadingText('Broadcasting Transaction to GenLayer AI Validators...');
 
-    // Request a real signature from the connected wallet
-    try {
-      const provider = await activeWallet.getEthereumProvider();
-      
-      try {
-        await provider.request({
-          method: 'wallet_switchEthereumChain',
-          params: [{ chainId: GENLAYER_CHAIN.chainId }],
-        });
-      } catch (switchError) {
-        if (switchError.code === 4902) {
-          await provider.request({
-            method: 'wallet_addEthereumChain',
-            params: [GENLAYER_CHAIN],
-          });
-        }
-      }
-
-      const message = `GovGuard Proposal Evaluation\n\nAction: Evaluate Proposal\nURL: ${url}\nContract: ${CONTRACT_ADDRESS}\nTimestamp: ${new Date().toISOString()}`;
-      const hexMessage = '0x' + Array.from(new TextEncoder().encode(message))
-        .map(b => b.toString(16).padStart(2, '0'))
-        .join('');
-
-      await provider.request({
-        method: 'personal_sign',
-        params: [hexMessage, walletAddress]
-      });
-    } catch (err) {
-      console.warn("Signature rejected by user", err);
-      setStatus('idle');
-      return;
-    }
+    // Note: Transaction is submitted via the ephemeral GenLayer account (glAccount)
+    // No wallet signature is required for GenLayer Studio testnet transactions here.
 
     // Step 1: Send REAL transaction to GenLayer
     setLoadingText('Broadcasting Transaction to GenLayer AI Validators...');
@@ -108,6 +78,9 @@ function App() {
       console.log('Real TX Hash:', txHash);
     } catch (err) {
       console.error('writeContract failed:', err);
+      setVerdict('ERROR');
+      setStatus('complete');
+      return;
     }
 
     // Step 2: Wait for consensus
@@ -139,19 +112,11 @@ function App() {
         setStatus('complete');
         return;
       } catch (err) {
-        console.warn('waitForReceipt timeout, using animation fallback:', err);
+        console.warn('waitForReceipt timeout or error:', err);
+        setVerdict('ERROR');
+        setStatus('complete');
       }
     }
-
-    // Fallback animation if tx or receipt fails
-    setTimeout(() => {
-      setLoadingText('Finalizing Equivalence Principle Check...');
-      setTimeout(() => {
-        const isApproved = Math.random() > 0.4;
-        setVerdict(isApproved ? 'APPROVED' : 'REJECTED');
-        setStatus('complete');
-      }, 1800);
-    }, 2000);
   };
 
   return (
@@ -226,6 +191,9 @@ function App() {
                 {status === 'loading' ? 'Adjudicating...' : 'Evaluate'}
               </button>
             </div>
+            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.5rem', textAlign: 'center' }}>
+              Note: Transactions are submitted gaslessly via an ephemeral GenLayer account. Your connected wallet is not required to sign.
+            </div>
           </form>
 
           {status === 'loading' && (
@@ -239,16 +207,20 @@ function App() {
             <div className={`result-container ${verdict.toLowerCase()}`}>
               <div className="verdict-title">
                 {verdict === 'APPROVED' ? <CheckCircle2 size={40} /> : <XCircle size={40} />}
-                {verdict}
+                {verdict === 'ERROR' ? 'Consensus Error' : verdict}
               </div>
               <p style={{ color: 'var(--text-muted)' }}>
                 {verdict === 'APPROVED' 
                   ? 'The proposal adheres to the constitution and is safe for voting.' 
-                  : 'The proposal violates the constitution (spam/malicious/irrelevant). Deposit slashed.'}
+                  : verdict === 'REJECTED'
+                    ? 'The proposal violates the constitution (spam/malicious/irrelevant). Deposit slashed.'
+                    : 'Transaction failed or consensus could not be reached. Please check the explorer or try again.'}
               </p>
-              <a href={`https://explorer-studio.genlayer.com/address/${CONTRACT_ADDRESS}`} target="_blank" rel="noreferrer" className="receipt-link">
-                View Live Contract on GenLayer Explorer <ExternalLink size={14} />
-              </a>
+              {verdict !== 'ERROR' && (
+                <a href={`https://explorer-studio.genlayer.com/address/${CONTRACT_ADDRESS}`} target="_blank" rel="noreferrer" className="receipt-link">
+                  View Live Contract on GenLayer Explorer <ExternalLink size={14} />
+                </a>
+              )}
             </div>
           )}
         </section>
