@@ -17,20 +17,26 @@ class GovGuard(gl.Contract):
     total_evaluated: u256
     last_verdict: str
     governor_address: str
+    owner: Address
 
     def __init__(self):
         self.constitution = "Proposals must be relevant to protocol growth, contain no hate speech, no scam links, and provide clear actionable steps."
         self.total_evaluated = u256(0)
         self.last_verdict = "NONE"
         self.governor_address = ""
+        self.owner = gl.message.sender_address
 
     @gl.public.write
     def update_constitution(self, new_rules: str) -> str:
+        if gl.message.sender_address != self.owner:
+            raise gl.UserError("Only owner can update constitution")
         self.constitution = new_rules
         return "Constitution Updated"
         
     @gl.public.write
     def set_governor_address(self, addr: str) -> str:
+        if gl.message.sender_address != self.owner:
+            raise gl.UserError("Only owner can set governor address")
         self.governor_address = addr
         return "Governor address set"
 
@@ -62,8 +68,6 @@ class GovGuard(gl.Contract):
         )
         
         clean_verdict = verdict.strip().upper()
-        if not clean_verdict.startswith("APPROVED"):
-            clean_verdict = "REJECTED"
             
         self.last_verdict = clean_verdict
         self.total_evaluated += u256(1)
