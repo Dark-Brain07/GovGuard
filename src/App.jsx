@@ -18,7 +18,7 @@ import { studionet } from 'genlayer-js/chains';
 import { TransactionStatus } from 'genlayer-js/types';
 import { usePrivy, useWallets } from '@privy-io/react-auth';
 
-const CONTRACT_ADDRESS = "0x1294AAf2F446580666705fa535C7E8F3203744c4";
+const CONTRACT_ADDRESS = "0xCdAb8Abae825a386f322004780541a2a9cdB247B";
 
 // Create GenLayer client once (Studionet doesn't need gas funding)
 const glAccount = createAccount();
