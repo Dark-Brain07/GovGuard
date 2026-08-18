@@ -26,5 +26,6 @@ This project was specifically designed to mirror the complex integration pattern
 
 ## Deployment
 - **Frontend App:** Ready for Vercel Deployment
-- **Intelligent Contract Address:** `0x2E0a398F11D35d3DB95f1A41799AdF4DFdDA53B7`
-- **Explorer Link:** [View on GenLayer Studio](https://explorer-studio.genlayer.com/address/0x2E0a398F11D35d3DB95f1A41799AdF4DFdDA53B7)
+- **GovGuard Contract Address:** `0xCdAb8Abae825a386f322004780541a2a9cdB247B`
+- **Mock Governor Target:** `0x98765585f2AA0Edce17176d2Fb920fdF8Ef949C8`
+- **Explorer Link:** [View on GenLayer Studio](https://explorer-studio.genlayer.com/address/0xCdAb8Abae825a386f322004780541a2a9cdB247B)
