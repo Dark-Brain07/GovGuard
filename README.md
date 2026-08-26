@@ -15,7 +15,7 @@ This project was specifically designed to mirror the complex integration pattern
 1. **Deterministic Web Fetching:** Uses `gl.get_webpage` wrapped in a stable comparative block to fetch raw proposal evidence from IPFS or web forums.
 2. **AI Validator Adjudication:** Uses `gl.eq_principle.prompt_comparative` for intelligent AI validator adjudication against the DAO Constitution, ensuring all nodes reach substantive agreement on the decision.
 3. **Fail-Safe Normalization:** Output normalization forces a strict `APPROVED` or `REJECTED` state before consensus is finalized. Ambiguity or AI drift defaults to Reject.
-4. **DAO Enforcement Layer (EVM):** Integrates via `@gl.evm.contract_interface` to physically emit a cross-chain `forward_proposal` transaction to an external Governor/Safe contract once a proposal is APPROVED.
+4. **DAO Enforcement Layer (Native IC-to-IC):** Integrates via `@gl.contract_interface` and the native `.emit()` path to securely forward an approved proposal to a GenLayer `MockGovernor` contract once a proposal is APPROVED.
 5. **Full-Stack Implementation:** Contains both the Intelligent Contract backend and a live DApp frontend for users to submit and track evaluations.
 
 ## How to Run Locally
@@ -26,6 +26,6 @@ This project was specifically designed to mirror the complex integration pattern
 
 ## Deployment
 - **Frontend App:** Ready for Vercel Deployment
-- **GovGuard Contract Address:** `0xCdAb8Abae825a386f322004780541a2a9cdB247B`
+- **GovGuard Contract Address:** `0x6D74B2Ac0eBD5bC9bcb8f4C8a891396729B0ED62`
 - **Mock Governor Target:** `0x98765585f2AA0Edce17176d2Fb920fdF8Ef949C8`
-- **Explorer Link:** [View on GenLayer Studio](https://explorer-studio.genlayer.com/address/0xCdAb8Abae825a386f322004780541a2a9cdB247B)
+- **Explorer Link:** [View on GenLayer Studio](https://explorer-studio.genlayer.com/address/0x6D74B2Ac0eBD5bC9bcb8f4C8a891396729B0ED62)

@@ -74,7 +74,7 @@ class GovGuard(gl.Contract):
         
         # DAO Enforcement Layer
         if clean_verdict == "APPROVED" and len(self.governor_address) > 10:
-            GovernorContract(self.governor_address).emit_forward_proposal(proposal_url=proposal_url)
+            GovernorContract(Address(self.governor_address)).emit().forward_proposal(proposal_url=proposal_url)
             
         return clean_verdict
 

@@ -18,7 +18,7 @@ import { studionet } from 'genlayer-js/chains';
 import { TransactionStatus } from 'genlayer-js/types';
 import { usePrivy, useWallets } from '@privy-io/react-auth';
 
-const CONTRACT_ADDRESS = "0xCdAb8Abae825a386f322004780541a2a9cdB247B";
+const CONTRACT_ADDRESS = "0x6D74B2Ac0eBD5bC9bcb8f4C8a891396729B0ED62";
 
 // Create GenLayer client once (Studionet doesn't need gas funding)
 const glAccount = createAccount();
@@ -103,11 +103,30 @@ function App() {
             functionName: 'get_last_verdict',
             args: [],
           });
-          const realVerdict = typeof result === 'string' && result.toUpperCase().includes('APPROVED') ? 'APPROVED' : 'REJECTED';
+          
+          let realVerdict = 'ERROR';
+          if (typeof result === 'string') {
+            const upperResult = result.toUpperCase();
+            if (upperResult.includes('APPROVED')) {
+              realVerdict = 'APPROVED';
+            } else if (upperResult.includes('REJECTED')) {
+              realVerdict = 'REJECTED';
+            }
+          }
           setVerdict(realVerdict);
         } catch {
           // Fallback: the receipt consensus_data might have the result
-          setVerdict(receipt?.consensus_data?.result?.includes('APPROVED') ? 'APPROVED' : 'REJECTED');
+          const receiptResult = receipt?.consensus_data?.result;
+          let realVerdict = 'ERROR';
+          if (typeof receiptResult === 'string') {
+            const upperResult = receiptResult.toUpperCase();
+            if (upperResult.includes('APPROVED')) {
+              realVerdict = 'APPROVED';
+            } else if (upperResult.includes('REJECTED')) {
+              realVerdict = 'REJECTED';
+            }
+          }
+          setVerdict(realVerdict);
         }
         setStatus('complete');
         return;
