@@ -16,7 +16,7 @@ This project was specifically designed to mirror the complex integration pattern
 2. **AI Validator Adjudication:** Uses `gl.eq_principle.prompt_comparative` for intelligent AI validator adjudication against the DAO Constitution, ensuring all nodes reach substantive agreement on the decision.
 3. **Fail-Safe Normalization:** Output normalization forces a strict `APPROVED` or `REJECTED` state before consensus is finalized. Ambiguity or AI drift defaults to Reject.
 4. **DAO Enforcement Layer (Native IC-to-IC):** Integrates via `@gl.contract_interface` and the native `.emit()` path to securely forward an approved proposal to a GenLayer `MockGovernor` contract once a proposal is APPROVED.
-5. **Full-Stack Implementation:** Contains both the Intelligent Contract backend and a live DApp frontend for users to submit and track evaluations.
+5. **Full-Stack Implementation:** Contains both the Intelligent Contract backend and a live DApp frontend for users to submit and track evaluations. The frontend submits transactions gaslessly using an ephemeral `createAccount()` signer, meaning the connected user wallet (MetaMask/Privy) does not need to sign the GenLayer execution.
 
 ## How to Run Locally
 1. Clone this repository.

@@ -18,7 +18,7 @@ import { studionet } from 'genlayer-js/chains';
 import { TransactionStatus } from 'genlayer-js/types';
 import { usePrivy, useWallets } from '@privy-io/react-auth';
 
-const CONTRACT_ADDRESS = "0x6D74B2Ac0eBD5bC9bcb8f4C8a891396729B0ED62";
+const CONTRACT_ADDRESS = "0xC35fb4B3A46D54A7e6373A60167c9286d08b334a";
 
 // Create GenLayer client once (Studionet doesn't need gas funding)
 const glAccount = createAccount();
@@ -93,6 +93,13 @@ function App() {
           status: TransactionStatus.FINALIZED,
         });
 
+        if (receipt.txExecutionResultName !== 'FINISHED_WITH_RETURN') {
+          console.warn('Transaction failed or reverted:', receipt.txExecutionResultName);
+          setVerdict('ERROR');
+          setStatus('complete');
+          return;
+        }
+
         setLoadingText('Finalizing Equivalence Principle Check...');
         await new Promise(r => setTimeout(r, 1000));
 
@@ -100,8 +107,8 @@ function App() {
         try {
           const result = await glClient.readContract({
             address: CONTRACT_ADDRESS,
-            functionName: 'get_last_verdict',
-            args: [],
+            functionName: 'get_verdict',
+            args: [url],
           });
           
           let realVerdict = 'ERROR';
@@ -232,7 +239,7 @@ function App() {
                 {verdict === 'APPROVED' 
                   ? 'The proposal adheres to the constitution and is safe for voting.' 
                   : verdict === 'REJECTED'
-                    ? 'The proposal violates the constitution (spam/malicious/irrelevant). Deposit slashed.'
+                    ? 'The proposal violates the constitution (spam/malicious/irrelevant).'
                     : 'Transaction failed or consensus could not be reached. Please check the explorer or try again.'}
               </p>
               {verdict !== 'ERROR' && (

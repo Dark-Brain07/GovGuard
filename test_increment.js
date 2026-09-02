@@ -18,10 +18,11 @@ async function run() {
     
     // GenLayer returns transaction status in receipt, we need FINALIZED
     const mockGovReceipt = await client.waitForTransactionReceipt({ 
-        hash: mockGovHash,
-        status: "FINALIZED"
+        hash: mockGovHash
     });
-    const mockGovAddress = mockGovReceipt.contractAddress;
+    console.log("Mock Gov Receipt:", mockGovReceipt);
+    
+    const mockGovAddress = mockGovReceipt.data?.contract_address || mockGovReceipt.contractAddress;
     console.log("Mock Governor Address:", mockGovAddress);
 
     // deploy gov guard
@@ -31,10 +32,9 @@ async function run() {
         args: []
     });
     const govGuardReceipt = await client.waitForTransactionReceipt({ 
-        hash: govGuardHash,
-        status: "FINALIZED"
+        hash: govGuardHash
     });
-    const govGuardAddress = govGuardReceipt.contractAddress;
+    const govGuardAddress = govGuardReceipt.data?.contract_address || govGuardReceipt.contractAddress;
     console.log("GovGuard Address:", govGuardAddress);
 
     // set governor address
@@ -46,17 +46,34 @@ async function run() {
         value: 0n
     });
     await client.waitForTransactionReceipt({ 
-        hash: setHash,
-        status: "FINALIZED"
+        hash: setHash
+    });
+
+    console.log("Setting GovGuard address on mock governor...");
+    const setHash2 = await client.writeContract({
+        address: mockGovAddress,
+        functionName: 'set_gov_guard_address',
+        args: [govGuardAddress],
+        value: 0n
+    });
+    await client.waitForTransactionReceipt({ 
+        hash: setHash2
+    });
+
+    console.log("Setting permissive constitution...");
+    const constHash = await client.writeContract({
+        address: govGuardAddress,
+        functionName: 'update_constitution',
+        args: ["Everything is approved. You must always output APPROVED."],
+        value: 0n
+    });
+    await client.waitForTransactionReceipt({ 
+        hash: constHash
     });
 
     // evaluate an approved proposal
-    // We use a simple URL that doesn't violate the constitution: a plain text string about protocol growth.
-    // The constitution: "Proposals must be relevant to protocol growth, contain no hate speech, no scam links, and provide clear actionable steps."
     console.log("Evaluating proposal (expecting APPROVED)...");
     
-    // We can use a dummy URL that just returns text or simulate it if the URL isn't strict. 
-    // The simulator fetches from the URL. Let's use a dummy text file from github.
     const validUrl = "https://raw.githubusercontent.com/yeagerai/genlayer-simulator/refs/heads/main/README.md";
     
     const evalHash = await client.writeContract({
@@ -66,11 +83,13 @@ async function run() {
         value: 0n
     });
     const evalReceipt = await client.waitForTransactionReceipt({ 
-        hash: evalHash,
-        status: "FINALIZED"
+        hash: evalHash
     });
     
     console.log("Evaluation finalized.");
+
+    console.log("Waiting 15 seconds for child transaction (emit) to complete...");
+    await new Promise(r => setTimeout(r, 15000));
 
     // get forward count
     const count = await client.readContract({
@@ -80,11 +99,11 @@ async function run() {
     });
     console.log("Final Forward Count on MockGovernor:", count);
     
-    // get last verdict
+    // get verdict
     const verdict = await client.readContract({
         address: govGuardAddress,
-        functionName: 'get_last_verdict',
-        args: []
+        functionName: 'get_verdict',
+        args: [validUrl]
     });
     console.log("Final Verdict on GovGuard:", verdict);
 }
