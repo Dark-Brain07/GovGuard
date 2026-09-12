@@ -1,0 +1,11 @@
+{
+  "govGuardAddress": "0x0b0502B15F3D0F9f7609D3878e8c4D0AF570b97f",
+  "mockGovAddress": "0xf0C81AA5e90aA9e04caD0E7e2a1246A0D83be3d0",
+  "evalTx": "0x5ff8b9f52e196eab08048040a7974e8956a2612c0bd8472bf315119a3bec1463",
+  "initialCount": "Forward Count: 0",
+  "finalCount": "Forward Count: 1",
+  "verdict": "APPROVED",
+  "contentHash": "0x8c296e78cf0a1d5fd21cac86f5e086c947b0846ce2262d38bc4e94cc057617e6",
+  "constitutionHash": "0x003987329122fb32a07c8335d25ba02ef08c59f4ca6a7f732af9948cd0d5ea58",
+  "timestamp": "2026-09-12T03:29:45.000Z"
+}

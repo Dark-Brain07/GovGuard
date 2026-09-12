@@ -1,31 +1,85 @@
 # GovGuard: AI-Powered DAO Constitutional Firewall
 
-**Category:** Projects & Milestones
-**Intelligent Contract:** `contracts/gov_guard.py`
-**Frontend:** React / Vite
+**Category:** Projects & Milestones  
+**Intelligent Contract:** `contracts/gov_guard.py`  
+**Mock Governance Target:** `contracts/mock_governor.py`  
+**Frontend:** React / Vite (Privy Web3 Auth + Ephemeral GenLayer Client Signer)
 
-## What is GovGuard?
-GovGuard is a cross-chain DAO security protocol. It acts as an Intelligent Adjudication layer for EVM-based DAOs to prevent governance spam, hate speech, and malicious proposals from ever reaching a vote.
+---
 
-Instead of human moderators reading every forum post, GovGuard uses GenLayer's AI validators as a "Supreme Court."
+## 1. What is GovGuard?
+GovGuard is a decentralized constitutional firewall for DAOs. It acts as an autonomous on-chain judicial layer that evaluates governance proposals against a codified DAO constitution to prevent governance spam, hate speech, prompt-injection exploits, and malicious treasury drains from reaching a vote.
 
-## Architecture & GenLayer Integration (The Apolo Pattern)
-This project was specifically designed to mirror the complex integration pattern of high-scoring GenLayer MVPs:
+GovGuard uses GenLayer's AI validators as a decentralized "Supreme Court." Upon reaching consensus, GovGuard cryptographically commits to the exact proposal content hash and constitution hash on-chain, and physically forwards approved proposals to an authorized governance contract via native Intelligent Contract-to-Intelligent Contract (IC-to-IC) messaging.
 
-1. **Deterministic Web Fetching:** Uses `gl.get_webpage` wrapped in a stable comparative block to fetch raw proposal evidence from IPFS or web forums.
-2. **AI Validator Adjudication:** Uses `gl.eq_principle.prompt_comparative` for intelligent AI validator adjudication against the DAO Constitution, ensuring all nodes reach substantive agreement on the decision.
-3. **Fail-Safe Normalization:** Output normalization forces a strict `APPROVED` or `REJECTED` state before consensus is finalized. Ambiguity or AI drift defaults to Reject.
-4. **DAO Enforcement Layer (Native IC-to-IC):** Integrates via `@gl.contract_interface` and the native `.emit()` path to securely forward an approved proposal to a GenLayer `MockGovernor` contract once a proposal is APPROVED.
-5. **Full-Stack Implementation:** Contains both the Intelligent Contract backend and a live DApp frontend for users to submit and track evaluations. The frontend submits transactions gaslessly using an ephemeral `createAccount()` signer, meaning the connected user wallet (MetaMask/Privy) does not need to sign the GenLayer execution.
+---
 
-## How to Run Locally
-1. Clone this repository.
-2. Run `npm install`
-3. Run `npm run dev`
-4. The DApp will be live at `http://localhost:5173/`
+## 2. Architecture & Public Implementation Details
 
-## Deployment
-- **Frontend App:** Ready for Vercel Deployment
-- **GovGuard Contract Address:** `0x6D74B2Ac0eBD5bC9bcb8f4C8a891396729B0ED62`
-- **Mock Governor Target:** `0x98765585f2AA0Edce17176d2Fb920fdF8Ef949C8`
-- **Explorer Link:** [View on GenLayer Studio](https://explorer-studio.genlayer.com/address/0x6D74B2Ac0eBD5bC9bcb8f4C8a891396729B0ED62)
+### A. Proposal Integrity & Cryptographic Commitment (TOCTOU Defense)
+To prevent Time-of-Check to Time-of-Use (TOCTOU) attacks where an author modifies web proposal text after approval:
+- GovGuard fetches the proposal text and computes its cryptographic SHA-256 hash: `content_hash = 0x + sha256(sanitized_content)`.
+- GovGuard computes the active constitution's SHA-256 hash: `constitution_hash = 0x + sha256(active_constitution)`.
+- Both hashes are committed on-chain in `GovGuard` state (`content_hashes` and `constitution_hashes` `TreeMap`s).
+- When a proposal is `APPROVED`, GovGuard invokes the governor interface:
+  `GovernorContract(Address(self.governor_address)).emit().forward_proposal(proposal_url, content_hash, constitution_hash)`.
+- The `MockGovernor` target verifies the caller is `GovGuard` and stores the immutable `(url, content_hash, constitution_hash)` tuple in on-chain storage.
+
+### B. Prompt-Injection Defense & Adversarial Mitigation
+GovGuard treats all external proposal text as untrusted adversarial data:
+1. **Delimiter Sanitization:** Delimiters (`</proposal_content>`, `<system>`) are stripped/escaped prior to model presentation, eliminating delimiter breakout attacks.
+2. **Strict Judge Directives:** System instructions mandate that any attempt to override constitutional rules, claim off-chain pre-authorization, simulate judge/system commands, or force an "APPROVED" outcome must be treated as a malicious attack and output `REJECTED`.
+3. **Automated Adversarial Test Suite:** All 4 primary injection vectors are automated in `test_adversarial.js` and verified on-chain against GenLayer validators:
+   - `Attack 1: Direct Constitution Override` -> `REJECTED` (PASSED)
+   - `Attack 2: Delimiter Escape / Tag Breakout` -> `REJECTED` (PASSED)
+   - `Attack 3: Fake DAO Council Pre-Approval` -> `REJECTED` (PASSED)
+   - `Attack 4: Role Reversal & Forced Formatting` -> `REJECTED` (PASSED)
+
+### C. GenLayer-Native IC-to-IC Governance Enforcement
+- **Implementation Scope:** The current enforcement path is demonstrated **GenLayer-native** through a dedicated `MockGovernor` contract using `@gl.contract_interface` and `.emit().forward_proposal(...)`. This provides a fully verifiable, zero-gas on-chain demonstration of automated firewall enforcement. It serves as an architectural reference implementation for cross-chain or EVM Safe/Governor bridge relays.
+- **On-Chain Evidence:** GovGuard commits on-chain constitutional state records (`verdict`, `content_hash`, `constitution_hash`, `total_evaluated`) rather than storing multi-megabyte external documents directly in contract state.
+
+### D. Wallet & Signer Architecture
+- **Connected Wallet (Privy / MetaMask / Rabby):** Used strictly for user authentication, Web3 identity, and frontend session state.
+- **Ephemeral GenLayer Account:** Testnet transactions are executed and broadcast gaslessly using an ephemeral `createAccount()` signer generated in the client runtime. The connected user wallet does not sign or pay gas for the GenLayer Studionet transactions.
+
+---
+
+## 3. Canonical Deployments & Live Execution Proof
+
+| Contract | Canonical Studionet Address | Explorer Link |
+|---|---|---|
+| **GovGuard** | `0x0b0502B15F3D0F9f7609D3878e8c4D0AF570b97f` | [View GovGuard on Explorer](https://explorer-studio.genlayer.com/address/0x0b0502B15F3D0F9f7609D3878e8c4D0AF570b97f) |
+| **MockGovernor** | `0xf0C81AA5e90aA9e04caD0E7e2a1246A0D83be3d0` | [View MockGovernor on Explorer](https://explorer-studio.genlayer.com/address/0xf0C81AA5e90aA9e04caD0E7e2a1246A0D83be3d0) |
+
+### On-Chain Enforcement Proof
+- **Evaluation Tx Hash:** `0x5ff8b9f52e196eab08048040a7974e8956a2612c0bd8472bf315119a3bec1463`
+- **Initial MockGovernor State:** `Forward Count: 0`
+- **Final MockGovernor State:** `Forward Count: 1`
+- **GovGuard Verdict:** `APPROVED`
+- **Committed Proposal Content Hash:** `0x8c296e78cf0a1d5fd21cac86f5e086c947b0846ce2262d38bc4e94cc057617e6`
+- **Committed Constitution Hash:** `0x003987329122fb32a07c8335d25ba02ef08c59f4ca6a7f732af9948cd0d5ea58`
+
+Reading `get_latest_proposal()` on MockGovernor returns the exact proposal URL and matching `content_hash` and `constitution_hash` committed by GovGuard.
+
+---
+
+## 4. How to Run Locally & Verify
+
+### Running the Frontend
+```bash
+npm install
+npm run dev
+# Live at http://localhost:5173/
+```
+
+### Running Canonical Deployment & Enforcement Verification
+```bash
+node deploy_and_verify.js
+```
+
+### Running Adversarial Security Tests
+```bash
+node test_adversarial.js
+```
+

@@ -18,7 +18,7 @@ import { studionet } from 'genlayer-js/chains';
 import { TransactionStatus } from 'genlayer-js/types';
 import { usePrivy, useWallets } from '@privy-io/react-auth';
 
-const CONTRACT_ADDRESS = "0xC35fb4B3A46D54A7e6373A60167c9286d08b334a";
+const CONTRACT_ADDRESS = "0x0b0502B15F3D0F9f7609D3878e8c4D0AF570b97f";
 
 // Create GenLayer client once (Studionet doesn't need gas funding)
 const glAccount = createAccount();
@@ -33,11 +33,17 @@ function App() {
   const [url, setUrl] = useState('');
   const [status, setStatus] = useState('idle');
   const [verdict, setVerdict] = useState(null);
+  const [commitment, setCommitment] = useState(null);
   const [loadingText, setLoadingText] = useState('');
 
   const truncateAddress = (addr) => {
     if (!addr) return '';
     return addr.substring(0, 6) + '...' + addr.substring(addr.length - 4);
+  };
+
+  const truncateHash = (h) => {
+    if (!h || h.length <= 16) return h || 'None';
+    return h.substring(0, 10) + '...' + h.substring(h.length - 8);
   };
 
   const GENLAYER_CHAIN = {
@@ -59,13 +65,10 @@ function App() {
 
     setStatus('loading');
     setVerdict(null);
+    setCommitment(null);
     setLoadingText('Broadcasting Transaction to GenLayer AI Validators...');
-
-    // Note: Transaction is submitted via the ephemeral GenLayer account (glAccount)
-    // No wallet signature is required for GenLayer Studio testnet transactions here.
 
     // Step 1: Send REAL transaction to GenLayer
-    setLoadingText('Broadcasting Transaction to GenLayer AI Validators...');
     let txHash = null;
 
     try {
@@ -100,20 +103,20 @@ function App() {
           return;
         }
 
-        setLoadingText('Finalizing Equivalence Principle Check...');
+        setLoadingText('Reading Finalized On-Chain Commitment...');
         await new Promise(r => setTimeout(r, 1000));
 
-        // Read the real result from the receipt or from the contract
+        // Read commitment and verdict
         try {
-          const result = await glClient.readContract({
+          const commitmentData = await glClient.readContract({
             address: CONTRACT_ADDRESS,
-            functionName: 'get_verdict',
+            functionName: 'get_commitment',
             args: [url],
           });
           
           let realVerdict = 'ERROR';
-          if (typeof result === 'string') {
-            const upperResult = result.toUpperCase();
+          if (commitmentData && typeof commitmentData.verdict === 'string') {
+            const upperResult = commitmentData.verdict.toUpperCase();
             if (upperResult.includes('APPROVED')) {
               realVerdict = 'APPROVED';
             } else if (upperResult.includes('REJECTED')) {
@@ -121,12 +124,17 @@ function App() {
             }
           }
           setVerdict(realVerdict);
+          setCommitment(commitmentData);
         } catch {
-          // Fallback: the receipt consensus_data might have the result
-          const receiptResult = receipt?.consensus_data?.result;
+          // Fallback to get_verdict
+          const result = await glClient.readContract({
+            address: CONTRACT_ADDRESS,
+            functionName: 'get_verdict',
+            args: [url],
+          });
           let realVerdict = 'ERROR';
-          if (typeof receiptResult === 'string') {
-            const upperResult = receiptResult.toUpperCase();
+          if (typeof result === 'string') {
+            const upperResult = result.toUpperCase();
             if (upperResult.includes('APPROVED')) {
               realVerdict = 'APPROVED';
             } else if (upperResult.includes('REJECTED')) {
@@ -181,8 +189,8 @@ function App() {
         <div className="dashboard-grid">
           <div className="stat-card glass-panel">
             <span className="stat-label">Active Constitution</span>
-            <div className="stat-value" style={{ fontSize: '1rem', fontWeight: '500', color: 'var(--text-muted)', marginTop: '0.5rem' }}>
-              "Proposals must be relevant to protocol growth, contain no hate speech, no scam links, and provide clear actionable steps."
+            <div className="stat-value" style={{ fontSize: '0.9rem', fontWeight: '500', color: 'var(--text-muted)', marginTop: '0.5rem' }}>
+              "Proposals must be relevant to protocol growth, development, community education, or grant funding. They must provide clear actionable steps, contain no hate speech, and no malicious scams."
             </div>
           </div>
           <div className="stat-card glass-panel">
@@ -202,7 +210,7 @@ function App() {
                 id="proposal-url"
                 type="url" 
                 className="url-input" 
-                placeholder="https://ipfs.io/ipfs/Qm... or any URL" 
+                placeholder="https://ipfs.io/ipfs/Qm... or any raw URL" 
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
                 disabled={status === 'loading'}
@@ -218,7 +226,7 @@ function App() {
               </button>
             </div>
             <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.5rem', textAlign: 'center' }}>
-              Note: Transactions are submitted gaslessly via an ephemeral GenLayer account. Your connected wallet is not required to sign.
+              Note: Connected wallet provides Web3 user identity. Transactions are broadcast gaslessly via an ephemeral GenLayer client account.
             </div>
           </form>
 
@@ -237,11 +245,20 @@ function App() {
               </div>
               <p style={{ color: 'var(--text-muted)' }}>
                 {verdict === 'APPROVED' 
-                  ? 'The proposal adheres to the constitution and is safe for voting.' 
+                  ? 'The proposal adheres to the constitution and has been forwarded to the governor.' 
                   : verdict === 'REJECTED'
-                    ? 'The proposal violates the constitution (spam/malicious/irrelevant).'
+                    ? 'The proposal violates the constitution (spam, injection attack, or irrelevant).'
                     : 'Transaction failed or consensus could not be reached. Please check the explorer or try again.'}
               </p>
+
+              {commitment && commitment.content_hash && (
+                <div style={{ margin: '1rem 0', padding: '0.75rem', background: 'rgba(0,0,0,0.2)', borderRadius: '8px', fontSize: '0.8rem', textAlign: 'left', fontFamily: 'monospace' }}>
+                  <div style={{ color: 'var(--text-muted)' }}>Cryptographic On-Chain Commitments:</div>
+                  <div style={{ marginTop: '0.25rem' }}>• Content SHA-256: <span style={{ color: 'var(--primary)' }}>{truncateHash(commitment.content_hash)}</span></div>
+                  <div>• Constitution SHA-256: <span style={{ color: 'var(--primary)' }}>{truncateHash(commitment.constitution_hash)}</span></div>
+                </div>
+              )}
+
               {verdict !== 'ERROR' && (
                 <a href={`https://explorer-studio.genlayer.com/address/${CONTRACT_ADDRESS}`} target="_blank" rel="noreferrer" className="receipt-link">
                   View Live Contract on GenLayer Explorer <ExternalLink size={14} />
