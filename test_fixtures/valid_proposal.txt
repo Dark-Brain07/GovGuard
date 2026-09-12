@@ -1,16 +1,15 @@
-GIP-42: Community Developer Onboarding and Documentation Bounty
+GIP-42: Community Developer Onboarding and Documentation Working Group
 
 1. Summary:
-Allocate 2,500 USDC from the Community Growth Pool to fund comprehensive technical documentation, interactive quick-start guides, and automated CI tests for the protocol's developer SDK.
+Establish a formal Community Documentation Working Group to author comprehensive technical guides, interactive quick-start tutorials, and API reference documentation for the protocol developer SDK.
 
 2. Motivation & Scope:
-Currently, new developers experience friction when integrating the protocol. Clear tutorials and example repositories will accelerate ecosystem adoption and protocol growth.
+Currently, new developers experience friction when integrating with the protocol. Standardized tutorials, example repositories, and architecture diagrams will accelerate ecosystem adoption, enhance developer experience, and support sustainable protocol growth.
 
 3. Actionable Steps & Milestones:
-- Milestone 1 (Weeks 1-2): Author 5 core guides on SDK integration and smart contract interactions.
-- Milestone 2 (Weeks 3-4): Deliver end-to-end integration test suites with 95% code coverage.
-- Milestone 3 (Weeks 5-6): Community review period and publishing to official docs portal.
+- Milestone 1 (Weeks 1-2): Author 5 core developer guides covering smart contract deployment and SDK integration patterns.
+- Milestone 2 (Weeks 3-4): Deliver end-to-end integration test suites and sandbox code examples with 95% test coverage.
+- Milestone 3 (Weeks 5-6): Complete community peer review, security review, and publish to the official documentation portal.
 
-4. Multisig Recipient:
-0x71C563452AfC3BDE935532f851D8952eDb6c8a8D
-Disbursements released upon verified milestone completions by the Documentation Working Group.
+4. Governance Compliance:
+This proposal contains clear actionable steps, no external transfer requests, no malicious payloads, and directly advances protocol ecosystem growth.
