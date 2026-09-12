@@ -1,0 +1,35 @@
+[
+  {
+    "test": "Section 1: Initial State Read",
+    "status": "SUCCESS",
+    "details": {
+      "stats": "Total Evaluated: 7",
+      "initialForwardCount": "Forward Count: 2"
+    }
+  },
+  {
+    "test": "Section 2: Proposal Evaluation (APPROVED)",
+    "status": "SUCCESS",
+    "txHash": "0xc7c97bc2dceae94fae60b6386998fe82e57f5645cfc4ca8f4dfffaf0756bdf8c",
+    "verdict": "APPROVED",
+    "contentHash": "0x8c296e78cf0a1d5fd21cac86f5e086c947b0846ce2262d38bc4e94cc057617e6",
+    "constitutionHash": "0x003987329122fb32a07c8335d25ba02ef08c59f4ca6a7f732af9948cd0d5ea58"
+  },
+  {
+    "test": "Section 3: Malicious Proposal Evaluation (REJECTED)",
+    "status": "SUCCESS",
+    "txHash": "0xdab7a9a6a605d2d232cba06ef752f301ef00bdbe45808a21924a6acb4d31c947",
+    "verdict": "REJECTED",
+    "governorFirewalled": true
+  },
+  {
+    "test": "Section 4A: Unauthorized set_governor_address",
+    "status": "SUCCESS",
+    "outcome": "REVERTED_AS_EXPECTED"
+  },
+  {
+    "test": "Section 4B: MockGovernor Firewall Direct Bypass",
+    "status": "SUCCESS",
+    "outcome": "BLOCKED_AS_EXPECTED"
+  }
+]
