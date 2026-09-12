@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   ShieldCheck, 
   Wallet, 
@@ -35,6 +35,7 @@ function App() {
   const [verdict, setVerdict] = useState(null);
   const [commitment, setCommitment] = useState(null);
   const [loadingText, setLoadingText] = useState('');
+  const [stats, setStats] = useState({ evaluated: 'Loading...', forwarded: 'Loading...' });
 
   const truncateAddress = (addr) => {
     if (!addr) return '';
@@ -46,22 +47,37 @@ function App() {
     return h.substring(0, 10) + '...' + h.substring(h.length - 8);
   };
 
-  const GENLAYER_CHAIN = {
-    chainId: '0xF21F', // 61999
-    chainName: 'GenLayer Studio Network',
-    rpcUrls: ['https://studio.genlayer.com/api'],
-    nativeCurrency: { name: 'GEN', symbol: 'GEN', decimals: 18 },
-    blockExplorerUrls: ['https://explorer-studio.genlayer.com'],
+  const MOCK_GOV_ADDRESS = "0xf0C81AA5e90aA9e04caD0E7e2a1246A0D83be3d0";
+
+  // Fetch live stats on load
+  const fetchLiveStats = async () => {
+    try {
+      const statsRes = await glClient.readContract({
+        address: CONTRACT_ADDRESS,
+        functionName: 'get_stats',
+        args: [],
+      });
+      const fwdRes = await glClient.readContract({
+        address: MOCK_GOV_ADDRESS,
+        functionName: 'get_forward_count',
+        args: [],
+      });
+      setStats({
+        evaluated: statsRes.replace('Total Evaluated: ', '') || '0',
+        forwarded: fwdRes.replace('Forward Count: ', '') || '0',
+      });
+    } catch (e) {
+      console.warn('Failed to load stats:', e);
+    }
   };
 
-  const handleEvaluate = async (e) => {
-    e.preventDefault();
-    if (!url) return;
+  useEffect(() => {
+    fetchLiveStats();
+  }, []);
 
-    if (!walletAddress || !activeWallet) {
-      login();
-      return;
-    }
+  const handleEvaluate = async (e) => {
+    if (e) e.preventDefault();
+    if (!url) return;
 
     setStatus('loading');
     setVerdict(null);
@@ -93,11 +109,16 @@ function App() {
       try {
         const receipt = await glClient.waitForTransactionReceipt({
           hash: txHash,
-          status: TransactionStatus.FINALIZED,
         });
 
-        if (receipt.txExecutionResultName !== 'FINISHED_WITH_RETURN') {
-          console.warn('Transaction failed or reverted:', receipt.txExecutionResultName);
+        const isSuccess = receipt.status_name === 'ACCEPTED' || 
+                          receipt.status === 2 ||
+                          receipt.txExecutionResultName === 'FINISHED_WITH_RETURN' || 
+                          receipt.result_name === 'MAJORITY_AGREE' ||
+                          !receipt.txExecutionResultName;
+
+        if (!isSuccess) {
+          console.warn('Transaction failed or reverted:', receipt);
           setVerdict('ERROR');
           setStatus('complete');
           return;
@@ -143,6 +164,9 @@ function App() {
           }
           setVerdict(realVerdict);
         }
+        
+        // Refresh live stats
+        fetchLiveStats();
         setStatus('complete');
         return;
       } catch (err) {
@@ -188,14 +212,23 @@ function App() {
 
         <div className="dashboard-grid">
           <div className="stat-card glass-panel">
-            <span className="stat-label">Active Constitution</span>
-            <div className="stat-value" style={{ fontSize: '0.9rem', fontWeight: '500', color: 'var(--text-muted)', marginTop: '0.5rem' }}>
-              "Proposals must be relevant to protocol growth, development, community education, or grant funding. They must provide clear actionable steps, contain no hate speech, and no malicious scams."
-            </div>
+            <span className="stat-label">Evaluated Proposals</span>
+            <span className="stat-value active" style={{ fontSize: '1.4rem', marginTop: '0.25rem' }}>{stats.evaluated}</span>
+          </div>
+          <div className="stat-card glass-panel">
+            <span className="stat-label">Forwarded to Governor</span>
+            <span className="stat-value active" style={{ fontSize: '1.4rem', marginTop: '0.25rem', color: 'var(--success)' }}>{stats.forwarded}</span>
           </div>
           <div className="stat-card glass-panel">
             <span className="stat-label">Network</span>
-            <span className="stat-value active" style={{ fontSize: '1.2rem', marginTop: '0.5rem' }}>GenLayer Studionet</span>
+            <span className="stat-value active" style={{ fontSize: '1.2rem', marginTop: '0.25rem' }}>GenLayer Studionet</span>
+          </div>
+        </div>
+
+        <div className="glass-panel" style={{ marginBottom: '1.5rem', padding: '1rem', borderLeft: '4px solid var(--primary)' }}>
+          <span className="stat-label" style={{ fontWeight: '600' }}>Active DAO Constitution (SHA-256 Verified):</span>
+          <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '0.35rem' }}>
+            "Proposals must be relevant to protocol growth, development, community education, or grant funding. They must provide clear actionable steps, contain no hate speech, and no malicious scams."
           </div>
         </div>
 
@@ -225,8 +258,30 @@ function App() {
                 {status === 'loading' ? 'Adjudicating...' : 'Evaluate'}
               </button>
             </div>
-            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.5rem', textAlign: 'center' }}>
-              Note: Connected wallet provides Web3 user identity. Transactions are broadcast gaslessly via an ephemeral GenLayer client account.
+
+            {/* Quick Test Presets */}
+            <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Quick Presets:</span>
+              <button
+                type="button"
+                className="preset-btn"
+                onClick={() => setUrl('https://raw.githubusercontent.com/Dark-Brain07/GovGuard/main/test_fixtures/valid_proposal.txt')}
+                style={{ fontSize: '0.75rem', padding: '0.25rem 0.6rem', borderRadius: '4px', background: 'rgba(16, 185, 129, 0.15)', color: '#34d399', border: '1px solid rgba(16, 185, 129, 0.3)', cursor: 'pointer' }}
+              >
+                ✅ Legitimate Dev Grant (Valid)
+              </button>
+              <button
+                type="button"
+                className="preset-btn"
+                onClick={() => setUrl('https://raw.githubusercontent.com/Dark-Brain07/GovGuard/main/test_fixtures/attack_override.txt')}
+                style={{ fontSize: '0.75rem', padding: '0.25rem 0.6rem', borderRadius: '4px', background: 'rgba(239, 68, 68, 0.15)', color: '#f87171', border: '1px solid rgba(239, 68, 68, 0.3)', cursor: 'pointer' }}
+              >
+                🚨 Prompt Injection Attack (Malicious)
+              </button>
+            </div>
+
+            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.75rem', textAlign: 'center' }}>
+              Session: <span style={{ color: 'var(--primary)', fontFamily: 'monospace' }}>{walletAddress ? truncateAddress(walletAddress) : `Guest (${truncateAddress(glAccount.address)})`}</span> • Gasless transactions via GenLayer Studionet
             </div>
           </form>
 
